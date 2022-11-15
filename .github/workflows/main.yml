@@ -20,15 +20,23 @@ jobs:
       - name: Checkout Repo.
         uses: actions/checkout@v3
 
-      - name: Prepare
+      - name: Prepare required
         run: |
           sudo apt-get install -y mingw-w64 zip wget libxml2-utils xsltproc
-          sh 00-prepare.sh
+      - name: Check Tag
+        id: vars
+        run: |
+          CHECK=$(echo $GITHUB_REF | grep 'refs/tags' || true)
+          CHECK=${CHECK#refs/tags/}
+          echo ::set-output name=tag::$CHECK
+      - name: Prepare
+        run: |
+          sh 00-prepare.sh ${{ steps.vars.outputs.tag }}
 
       - name: Setup Versions
         id: setup
         run: |
-          HASH=$(git rev-parse HEAD | cut -c1-9)
+          HASH=$(cd nginx; git rev-parse HEAD | cut -c1-9)
           echo "::set-output name=commitHash::$HASH"
           VER=$(cat nginx/src/core/nginx.h | grep NGINX_VERSION | grep -ioP '((\d+\.)+\d+)')
           echo "::set-output name=version::$VER"
@@ -41,12 +49,12 @@ jobs:
 
           mkdir release
           mv *.zip release/
-          ls -al release
+          ls -alh release
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: nginx-${{ steps.setup.outputs.version }}
+          name: nginx-${{ steps.setup.outputs.version }}-${{ steps.setup.outputs.commitHash }}
           path: ${{ github.workspace }}/release/nginx-*.zip
 
   make-release:
@@ -84,7 +92,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.metadata.outputs.version, 'rc') || contains(steps.metadata.outputs.version, 'beta') }}
           tag_name: ${{ steps.metadata.outputs.version }}
-          name: "nginx-${{ steps.setup.outputs.version }}-${{ steps.metadata.outputs.version }}"
+          name: "nginx-${{ steps.setup.outputs.version }}"
           body_path: ${{ github.workspace }}/CHECKSUMS.txt
           files: |
             ${{ github.workspace }}/**/*.zip
