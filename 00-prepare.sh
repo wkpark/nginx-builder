@@ -26,6 +26,16 @@ done
 
 NGINX_TAG=$1
 
+# workaround git user name and email not set
+GIT_USER_NAME="$(git config --global user.name)"
+GIT_USER_EMAIL="$(git config --global user.email)"
+if [ "${GIT_USER_NAME}" = "" ]; then
+    git config --global user.name "Build Bot"
+fi
+if [ "${GIT_USER_EMAIL}" = "" ]; then
+    git config --global user.email "nobody@example.com"
+fi
+
 # clone the nginx
 if [ -d nginx ]; then
     cd nginx || exit 1
