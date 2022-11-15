@@ -1,0 +1,282 @@
+From 0fcd667039e3e30b93ff724dcf077150c991e6aa Mon Sep 17 00:00:00 2001
+From: Won-Kyu Park <wkpark@gmail.com>
+Date: Mon, 14 Nov 2022 14:01:15 +0900
+Subject: [PATCH] support shared pcre/pcre2/zlib/openssl with --shared-*
+ options
+
+---
+ auto/lib/openssl/conf       | 20 ++++++++++++++++----
+ auto/lib/openssl/make       |  2 +-
+ auto/lib/pcre/conf          | 28 +++++++++++++++++++++++++---
+ auto/lib/pcre/make          | 10 +++++-----
+ auto/lib/pcre/makefile.msvc |  2 +-
+ auto/lib/zlib/conf          | 14 ++++++++++++--
+ auto/lib/zlib/make          |  4 ++--
+ auto/options                |  8 ++++++++
+ 8 files changed, 70 insertions(+), 18 deletions(-)
+
+diff --git a/auto/lib/openssl/conf b/auto/lib/openssl/conf
+index 4fb52df..edbb5d9 100644
+--- a/auto/lib/openssl/conf
++++ b/auto/lib/openssl/conf
+@@ -30,6 +30,8 @@ if [ $OPENSSL != NONE ]; then
+             CORE_LIBS="$CORE_LIBS gdi32.lib"
+             # OpenSSL 1.0.0 requires crypt32.lib
+             CORE_LIBS="$CORE_LIBS crypt32.lib"
++
++            OPENSSL_CONF_OPT="no-shared"
+         ;;
+ 
+         *)
+@@ -38,14 +40,24 @@ if [ $OPENSSL != NONE ]; then
+ 
+             CORE_INCS="$CORE_INCS $OPENSSL/.openssl/include"
+             CORE_DEPS="$CORE_DEPS $OPENSSL/.openssl/include/openssl/ssl.h"
+-            CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libssl.a"
+-            CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libcrypto.a"
+-            CORE_LIBS="$CORE_LIBS $NGX_LIBDL"
+-            CORE_LIBS="$CORE_LIBS $NGX_LIBPTHREAD"
+ 
+             if [ "$NGX_PLATFORM" = win32 ]; then
++                if [ "$OPENSSL_SHARED" != "" ]; then
++                    CORE_LIBS="$CORE_LIBS -L$OPENSSL/.openssl/lib/ -lssl -lcrypto"
++                    OPENSSL_CONF_OPT="shared"
++                else
++                    CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libssl.a"
++                    CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libcrypto.a"
++                    OPENSSL_CONF_OPT="no-shared"
++                fi
+                 CORE_LIBS="$CORE_LIBS -lgdi32 -lcrypt32 -lws2_32"
++            else
++                OPENSSL_CONF_OPT="no-shared"
++                CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libssl.a"
++                CORE_LIBS="$CORE_LIBS $OPENSSL/.openssl/lib/libcrypto.a"
+             fi
++            CORE_LIBS="$CORE_LIBS $NGX_LIBDL"
++            CORE_LIBS="$CORE_LIBS $NGX_LIBPTHREAD"
+         ;;
+     esac
+ 
+diff --git a/auto/lib/openssl/make b/auto/lib/openssl/make
+index 7362b67..b567b0a 100644
+--- a/auto/lib/openssl/make
++++ b/auto/lib/openssl/make
+@@ -51,7 +51,7 @@ END
+ $OPENSSL/.openssl/include/openssl/ssl.h:	$NGX_MAKEFILE
+ 	cd $OPENSSL \\
+ 	&& if [ -f Makefile ]; then \$(MAKE) clean; fi \\
+-	&& ./Configure \$(OPENSSL_CONF_OPT) --prefix=$ngx_prefix no-shared no-threads $OPENSSL_OPT \\
++	&& ./Configure \$(OPENSSL_CONF_OPT) --prefix=$ngx_prefix $OPENSSL_CONF_OPT no-threads $OPENSSL_OPT \\
+ 	&& \$(MAKE) \\
+ 	&& \$(MAKE) install_sw LIBDIR=lib
+ 
+diff --git a/auto/lib/pcre/conf b/auto/lib/pcre/conf
+index 20c1caf..e333e54 100644
+--- a/auto/lib/pcre/conf
++++ b/auto/lib/pcre/conf
+@@ -12,7 +12,7 @@ if [ $PCRE != NONE ]; then
+         have=NGX_PCRE . auto/have
+         have=NGX_PCRE2 . auto/have
+ 
+-        if [ "$NGX_PLATFORM" = win32 ]; then
++        if [ "$NGX_PLATFORM" = win32 ] && [ "$PCRE2_SHARED" = "" ]; then
+             have=PCRE2_STATIC . auto/have
+         fi
+ 
+@@ -22,13 +22,25 @@ if [ $PCRE != NONE ]; then
+         case "$NGX_CC_NAME" in
+ 
+             msvc)
++                PCRE2_STATIC="-DPCRE2_STATIC"
+                 LINK_DEPS="$LINK_DEPS $PCRE/src/pcre2-8.lib"
+                 CORE_LIBS="$CORE_LIBS $PCRE/src/pcre2-8.lib"
+             ;;
+ 
+             *)
++                PCRE2_STATIC="-DPCRE2_STATIC"
+                 LINK_DEPS="$LINK_DEPS $PCRE/.libs/libpcre2-8.a"
+-                CORE_LIBS="$CORE_LIBS $PCRE/.libs/libpcre2-8.a"
++
++                if [ "$NGX_PLATFORM" = win32 ]; then
++                    if [ "$PCRE2_SHARED" = "" ]; then
++                        CORE_LIBS="$CORE_LIBS $PCRE/.libs/libpcre2-8.a"
++                        PCRE2_STATIC="-DPCRE2_STATIC"
++                    else
++                        CORE_LIBS="$CORE_LIBS -L$PCRE/.libs -lpcre2-8"
++                        PCRE_CONF_OPT="$PCRE_CONF_OPT --enable-shared"
++                        PCRE2_STATIC=
++                    fi
++                fi
+             ;;
+ 
+         esac
+@@ -39,7 +51,7 @@ if [ $PCRE != NONE ]; then
+ 
+         have=NGX_PCRE . auto/have
+ 
+-        if [ "$NGX_PLATFORM" = win32 ]; then
++        if [ "$NGX_PLATFORM" = win32 ] && [ "$PCRE_SHARED" = "" ]; then
+             have=PCRE_STATIC . auto/have
+         fi
+ 
+@@ -56,6 +68,16 @@ if [ $PCRE != NONE ]; then
+             *)
+                 LINK_DEPS="$LINK_DEPS $PCRE/.libs/libpcre.a"
+                 CORE_LIBS="$CORE_LIBS $PCRE/.libs/libpcre.a"
++                if [ "$NGX_PLATFORM" = win32 ]; then
++                    if [ "$PCRE_SHARED" = "" ]; then
++                        CORE_LIBS="$CORE_LIBS $PCRE/.libs/libpcre.a"
++                        PCRE_STATIC="-DPCRE_STATIC"
++                    else
++                        CORE_LIBS="$CORE_LIBS -L$PCRE/.libs -lpcre"
++                        PCRE_CONF_OPT="$PCRE_CONF_OPT --enable-shared"
++                        PCRE_STATIC=
++                    fi
++                fi
+             ;;
+ 
+         esac
+diff --git a/auto/lib/pcre/make b/auto/lib/pcre/make
+index 782cf7d..4e61b7b 100644
+--- a/auto/lib/pcre/make
++++ b/auto/lib/pcre/make
+@@ -60,7 +60,7 @@ if [ $PCRE_LIBRARY = PCRE2 ]; then
+         cat << END                                            >> $NGX_MAKEFILE
+ 
+ PCRE_CFLAGS =	-O2 -Ob1 -Oi -Gs $LIBC $CPU_OPT
+-PCRE_FLAGS =	-DHAVE_CONFIG_H -DPCRE2_STATIC -DPCRE2_CODE_UNIT_WIDTH=8 \\
++PCRE_FLAGS =	-DHAVE_CONFIG_H $(PCRE2_STATIC) -DPCRE2_CODE_UNIT_WIDTH=8 \\
+ 		-DHAVE_MEMMOVE
+ 
+ PCRE_SRCS =	 $ngx_pcre_srcs
+@@ -88,8 +88,8 @@ $PCRE/src/pcre2.h:	$PCRE/Makefile
+ $PCRE/Makefile:	$NGX_MAKEFILE
+ 	cd $PCRE \\
+ 	&& if [ -f Makefile ]; then \$(MAKE) distclean; fi \\
+-	&& CC="\$(CC)" CFLAGS="$PCRE_OPT" \\
+-	./configure \$(PCRE_CONF_OPT) --disable-shared $PCRE_CONF_OPT
++	&& CC="\$(CC)" CFLAGS="$PCRE_OPT $PCRE2_STATIC" \\
++	./configure \$(PCRE_CONF_OPT) $PCRE_CONF_OPT
+ 
+ $PCRE/.libs/libpcre2-8.a:	$PCRE/Makefile
+ 	cd $PCRE \\
+@@ -108,7 +108,7 @@ else
+ 
+         msvc)
+             ngx_makefile=makefile.msvc
+-            ngx_opt="CPU_OPT=\"$CPU_OPT\" LIBC=$LIBC"
++            ngx_opt="CPU_OPT=\"$CPU_OPT\" PCRE_STATIC=$PCRE_STATIC LIBC=$LIBC"
+             ngx_pcre="PCRE=\"$PCRE\""
+         ;;
+ 
+@@ -155,7 +155,7 @@ $PCRE/Makefile:	$NGX_MAKEFILE
+ 	cd $PCRE \\
+ 	&& if [ -f Makefile ]; then \$(MAKE) distclean; fi \\
+ 	&& CC="\$(CC)" CFLAGS="$PCRE_OPT" \\
+-	./configure --disable-shared $PCRE_CONF_OPT
++	./configure \$(PCRE_CONF_OPT) $PCRE_CONF_OPT
+ 
+ $PCRE/.libs/libpcre.a:	$PCRE/Makefile
+ 	cd $PCRE \\
+diff --git a/auto/lib/pcre/makefile.msvc b/auto/lib/pcre/makefile.msvc
+index 07fd9a2..164ed2c 100644
+--- a/auto/lib/pcre/makefile.msvc
++++ b/auto/lib/pcre/makefile.msvc
+@@ -4,7 +4,7 @@
+ 
+ 
+ CFLAGS =	-O2 -Ob1 -Oi -Gs $(LIBC) $(CPU_OPT)
+-PCREFLAGS =	-DHAVE_CONFIG_H -DPCRE_STATIC -DPOSIX_MALLOC_THRESHOLD=10 \
++PCREFLAGS =	-DHAVE_CONFIG_H $(PCRE_STATIC) -DPOSIX_MALLOC_THRESHOLD=10 \
+ 		-DSUPPORT_PCRE8 -DHAVE_MEMMOVE
+ 
+ 
+diff --git a/auto/lib/zlib/conf b/auto/lib/zlib/conf
+index 239592e..48fdcae 100644
+--- a/auto/lib/zlib/conf
++++ b/auto/lib/zlib/conf
+@@ -34,8 +34,18 @@ if [ $ZLIB != NONE ]; then
+         *)
+             have=NGX_ZLIB . auto/have
+             LINK_DEPS="$LINK_DEPS $ZLIB/libz.a"
+-            CORE_LIBS="$CORE_LIBS $ZLIB/libz.a"
+-            #CORE_LIBS="$CORE_LIBS -L $ZLIB -lz"
++
++            if [ "$NGX_PLATFORM" = win32 ]; then
++                if [ "$ZLIB_SHARED" = "" ]; then
++                    CORE_LIBS="$CORE_LIBS $ZLIB/libz.a"
++                    ZLIBA=libz.a
++                else
++                    CORE_LIBS="$CORE_LIBS -L $ZLIB -lz"
++                    ZLIBA=libz.dll.a
++                fi
++            else
++                ZLIBA=libz.a
++            fi
+         ;;
+ 
+     esac
+diff --git a/auto/lib/zlib/make b/auto/lib/zlib/make
+index 0082ad5..9f54515 100644
+--- a/auto/lib/zlib/make
++++ b/auto/lib/zlib/make
+@@ -53,9 +53,9 @@ END
+ $ZLIB/libz.a:	$NGX_MAKEFILE
+ 	cd $ZLIB \\
+ 	&& \$(MAKE) distclean \\
+-	&& \$(MAKE) -f win32/Makefile.gcc \\
++	&& \$(MAKE) \$(ZLIB_CONF_OPT) -f win32/Makefile.gcc \\
+ 		CFLAGS="$ZLIB_OPT" CC="\$(CC)" \\
+-		libz.a
++		$ZLIBA
+ 
+ END
+ 
+diff --git a/auto/options b/auto/options
+index 48f3a1a..efdb4ba 100644
+--- a/auto/options
++++ b/auto/options
+@@ -146,15 +146,19 @@ PCRE=NONE
+ PCRE_OPT=
+ PCRE_CONF_OPT=
+ PCRE_JIT=NO
++PCRE_SHARED=
+ PCRE2=YES
++PCRE2_SHARED=
+ 
+ USE_OPENSSL=NO
+ OPENSSL=NONE
++OPENSSL_SHARED=
+ 
+ USE_ZLIB=NO
+ ZLIB=NONE
+ ZLIB_OPT=
+ ZLIB_ASM=NO
++ZLIB_SHARED=
+ 
+ USE_PERL=NO
+ NGX_PERL=perl
+@@ -359,9 +363,12 @@ use the \"--with-mail_ssl_module\" option instead"
+         --with-pcre-opt=*)               PCRE_OPT="$value"          ;;
+         --with-pcre-jit)                 PCRE_JIT=YES               ;;
+         --without-pcre2)                 PCRE2=DISABLED             ;;
++        --shared-pcre)                   PCRE_SHARED=YES            ;;
++        --shared-pcre2)                  PCRE2_SHARED=YES           ;;
+ 
+         --with-openssl=*)                OPENSSL="$value"           ;;
+         --with-openssl-opt=*)            OPENSSL_OPT="$value"       ;;
++        --shared-openssl)                OPENSSL_SHARED=YES         ;;
+ 
+         --with-md5=*)
+             NGX_POST_CONF_MSG="$NGX_POST_CONF_MSG
+@@ -392,6 +399,7 @@ $0: warning: the \"--with-sha1-asm\" option is deprecated"
+         --with-zlib=*)                   ZLIB="$value"              ;;
+         --with-zlib-opt=*)               ZLIB_OPT="$value"          ;;
+         --with-zlib-asm=*)               ZLIB_ASM="$value"          ;;
++        --shared-zlib)                   ZLIB_SHARED=YES            ;;
+ 
+         --with-libatomic)                NGX_LIBATOMIC=YES          ;;
+         --with-libatomic=*)              NGX_LIBATOMIC="$value"     ;;
+-- 
+2.17.1
+

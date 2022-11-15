@@ -1,0 +1,39 @@
+From cf9ba2ef65542fee94eb55add95009c44d44ed23 Mon Sep 17 00:00:00 2001
+From: Won-Kyu Park <wkpark@gmail.com>
+Date: Mon, 14 Nov 2022 03:22:44 +0900
+Subject: [PATCH] add *_CONF_OPT to add cross-compile options
+
+---
+ auto/lib/openssl/make | 2 +-
+ auto/lib/pcre/make    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/auto/lib/openssl/make b/auto/lib/openssl/make
+index 126a238..7362b67 100644
+--- a/auto/lib/openssl/make
++++ b/auto/lib/openssl/make
+@@ -51,7 +51,7 @@ END
+ $OPENSSL/.openssl/include/openssl/ssl.h:	$NGX_MAKEFILE
+ 	cd $OPENSSL \\
+ 	&& if [ -f Makefile ]; then \$(MAKE) clean; fi \\
+-	&& ./config --prefix=$ngx_prefix no-shared no-threads $OPENSSL_OPT \\
++	&& ./Configure \$(OPENSSL_CONF_OPT) --prefix=$ngx_prefix no-shared no-threads $OPENSSL_OPT \\
+ 	&& \$(MAKE) \\
+ 	&& \$(MAKE) install_sw LIBDIR=lib
+ 
+diff --git a/auto/lib/pcre/make b/auto/lib/pcre/make
+index 839ef29..782cf7d 100644
+--- a/auto/lib/pcre/make
++++ b/auto/lib/pcre/make
+@@ -89,7 +89,7 @@ $PCRE/Makefile:	$NGX_MAKEFILE
+ 	cd $PCRE \\
+ 	&& if [ -f Makefile ]; then \$(MAKE) distclean; fi \\
+ 	&& CC="\$(CC)" CFLAGS="$PCRE_OPT" \\
+-	./configure --disable-shared $PCRE_CONF_OPT
++	./configure \$(PCRE_CONF_OPT) --disable-shared $PCRE_CONF_OPT
+ 
+ $PCRE/.libs/libpcre2-8.a:	$PCRE/Makefile
+ 	cd $PCRE \\
+-- 
+2.17.1
+

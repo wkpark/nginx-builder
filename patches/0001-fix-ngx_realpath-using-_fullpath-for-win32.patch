@@ -1,0 +1,45 @@
+From d452111e8c142bfcc83e7da4d42ca1597df3d5b5 Mon Sep 17 00:00:00 2001
+From: Won-Kyu Park <wkpark@gmail.com>
+Date: Tue, 1 Nov 2022 19:33:59 +0900
+Subject: [PATCH] fix ngx_realpath() using _fullpath() for win32
+
+---
+ src/os/win32/ngx_files.c | 8 --------
+ src/os/win32/ngx_files.h | 2 +-
+ 2 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/os/win32/ngx_files.c b/src/os/win32/ngx_files.c
+index 3017b45..87b32bf 100644
+--- a/src/os/win32/ngx_files.c
++++ b/src/os/win32/ngx_files.c
+@@ -416,14 +416,6 @@ ngx_close_file_mapping(ngx_file_mapping_t *fm)
+ }
+ 
+ 
+-u_char *
+-ngx_realpath(u_char *path, u_char *resolved)
+-{
+-    /* STUB */
+-    return path;
+-}
+-
+-
+ ngx_int_t
+ ngx_open_dir(ngx_str_t *name, ngx_dir_t *dir)
+ {
+diff --git a/src/os/win32/ngx_files.h b/src/os/win32/ngx_files.h
+index a10839b..037a43c 100644
+--- a/src/os/win32/ngx_files.h
++++ b/src/os/win32/ngx_files.h
+@@ -172,7 +172,7 @@ ngx_int_t ngx_create_file_mapping(ngx_file_mapping_t *fm);
+ void ngx_close_file_mapping(ngx_file_mapping_t *fm);
+ 
+ 
+-u_char *ngx_realpath(u_char *path, u_char *resolved);
++#define ngx_realpath(path, resolved) (u_char *)_fullpath((char *)(resolved), (char *)(path), MAX_PATH)
+ #define ngx_realpath_n              ""
+ #define ngx_getcwd(buf, size)       GetCurrentDirectory(size, (char *) buf)
+ #define ngx_getcwd_n                "GetCurrentDirectory()"
+-- 
+2.17.1
+
