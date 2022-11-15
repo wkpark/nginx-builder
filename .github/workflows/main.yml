@@ -28,6 +28,7 @@ jobs:
         run: |
           CHECK=$(echo $GITHUB_REF | grep 'refs/tags' || true)
           CHECK=${CHECK#refs/tags/}
+          [ "$CHECK" != ""  ] && CHECK="release-$CHECK"
           echo ::set-output name=tag::$CHECK
       - name: Prepare
         run: |
