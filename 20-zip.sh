@@ -32,9 +32,11 @@ for tag in "" slim; do
             exe=$name-$static.exe
             zip=$name-$static.zip
         fi
-        cp -a $exe nginx.exe
-        rm -f $zip
-        zip -r $zip docs temp logs nginx.exe $dlls html contrib
+        if [ -f $exe ]; then
+            cp -a $exe nginx.exe
+            rm -f $zip
+            zip -r $zip docs temp logs nginx.exe $dlls html contrib
+        fi
     done
 done
 
