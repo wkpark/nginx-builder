@@ -53,6 +53,7 @@ configure_args="--sbin-path=nginx.exe
 
 # setup $CC and $machine
 CC=x86_64-w64-mingw32-gcc
+WINDRES=x86_64-w64-mingw32-windres
 machine=$($CC -dumpmachine | cut -d- -f1)
 
 echo "==== $machine ===="
@@ -64,6 +65,7 @@ if [ ! -f ../nginx-slim-$version-$machine-static.exe ]; then
 # no-ssl build
 auto/configure $configure_args \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt='-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'
 
 echo auto/configure $configure_args \
@@ -84,10 +86,12 @@ auto/configure $configure_args \
     --shared-pcre \
     --shared-pcre2 \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt='-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'
 
 echo auto/configure $configure_args \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt="'-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'" > .config-slim
 # re-build
 ZLIB_CONF_OPT="PREFIX=x86_64-w64-mingw32-" \
@@ -114,11 +118,13 @@ if [ ! -f ../nginx-$version-$machine-static.exe ]; then
 
 auto/configure $configure_args \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt='-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe' \
     --with-openssl-opt='no-tests -D_WIN32_WINNT=0x0501'
 
 echo auto/configure $configure_args \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-openssl-opt="'no-tests -D_WIN32_WINNT=0x0501'" \
     --with-cc-opt="'-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'" > .config-static
 
@@ -137,12 +143,14 @@ if [ ! -f ../nginx-$version-$machine-static-debug.exe ]; then
 auto/configure $configure_args \
     --with-debug \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt='-DFD_SETSIZE=1024 -O2 -fno-strict-aliasing -pipe' \
     --with-openssl-opt='no-tests -D_WIN32_WINNT=0x0501'
 
 echo auto/configure $configure_args \
     --with-debug \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-openssl-opt="'no-tests -D_WIN32_WINNT=0x0501'" \
     --with-cc-opt="'-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'" > .config-static-debug
 
@@ -162,6 +170,7 @@ auto/configure $configure_args \
     --shared-pcre2 \
     --shared-openssl \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt='-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe' \
     --with-openssl-opt='no-tests -D_WIN32_WINNT=0x0501'
 
@@ -171,6 +180,7 @@ echo auto/configure $configure_args \
     --shared-pcre2 \
     --shared-openssl \
     --with-cc=$CC \
+    --with-windres=$WINDRES \
     --with-cc-opt="'-DFD_SETSIZE=1024 -s -O2 -fno-strict-aliasing -pipe'" \
     --with-openssl-opt="'no-tests -D_WIN32_WINNT=0x0501'" > .config
 
