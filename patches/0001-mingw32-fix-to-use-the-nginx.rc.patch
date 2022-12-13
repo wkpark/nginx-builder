@@ -1,0 +1,82 @@
+From 86672acebcaf36d16dd29462df54c80d55155486 Mon Sep 17 00:00:00 2001
+From: Won-Kyu Park <wkpark@gmail.com>
+Date: Tue, 13 Dec 2022 11:20:44 +0900
+Subject: [PATCH] mingw32 fix to use the nginx.rc
+
+---
+ auto/cc/gcc           | 7 +++++++
+ auto/make             | 3 +++
+ auto/options          | 3 +++
+ src/os/win32/nginx.rc | 5 ++++-
+ 4 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/auto/cc/gcc b/auto/cc/gcc
+index a5c5c18f..3ce0cef0 100644
+--- a/auto/cc/gcc
++++ b/auto/cc/gcc
+@@ -110,6 +110,13 @@ case $CPU in
+ 
+ esac
+ 
++if [ ".$NGX_PLATFORM" = ".win32" ]; then
++    # the resource file
++    NGX_RES="$NGX_OBJS/nginx.res"
++    NGX_RCC="\$(WINDRES) -O coff -o$NGX_RES \$(CORE_INCS) $NGX_WIN32_RC"
++    CORE_LINK="$NGX_RES $CORE_LINK"
++fi
++
+ CC_AUX_FLAGS="$CC_AUX_FLAGS $CPU_OPT"
+ 
+ case "$NGX_GCC_VER" in
+diff --git a/auto/make b/auto/make
+index ef7c9f69..a3288c10 100644
+--- a/auto/make
++++ b/auto/make
+@@ -27,6 +27,9 @@ LINK =	$LINK
+ 
+ END
+ 
++if [ "$NGX_PLATFORM" = win32 ]; then
++    echo WINDRES = $WINDRES                                   >> $NGX_MAKEFILE
++fi
+ 
+ if test -n "$NGX_PERL_CFLAGS"; then
+     echo NGX_PERL_CFLAGS = $NGX_PERL_CFLAGS                   >> $NGX_MAKEFILE
+diff --git a/auto/options b/auto/options
+index 48f3a1a4..511d7f28 100644
+--- a/auto/options
++++ b/auto/options
+@@ -21,6 +21,8 @@ CC=${CC:-cc}
+ CPP=
+ NGX_OBJS=objs
+ 
++WINDRES=${WINDRES:-windres}
++
+ NGX_DEBUG=NO
+ NGX_CC_OPT=
+ NGX_LD_OPT=
+@@ -352,6 +354,7 @@ use the \"--with-mail_ssl_module\" option instead"
+         --with-ld-opt=*)                 NGX_LD_OPT="$value"        ;;
+         --with-cpu-opt=*)                CPU="$value"               ;;
+         --with-debug)                    NGX_DEBUG=YES              ;;
++        --with-windres=*)                WINDRES="$value"           ;;
+ 
+         --without-pcre)                  USE_PCRE=DISABLED          ;;
+         --with-pcre)                     USE_PCRE=YES               ;;
+diff --git a/src/os/win32/nginx.rc b/src/os/win32/nginx.rc
+index dc8b7ab9..329b6e30 100644
+--- a/src/os/win32/nginx.rc
++++ b/src/os/win32/nginx.rc
+@@ -2,5 +2,8 @@
+ // Copyright (C) Igor Sysoev
+ // Copyright (C) Nginx, Inc.
+ 
+-
++#ifdef __MINGW32__
++nginx   ICON  DISCARDABLE "src/os/win32/nginx.ico"
++#else
+ nginx   icon  discardable  "src\\os\\win32\\nginx.ico"
++#endif
+-- 
+2.17.1
+
